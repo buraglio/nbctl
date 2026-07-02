@@ -196,13 +196,14 @@ func syncRecordType(cfg *Config, peers []NetBirdPeer, recType string, target Zon
 
 	wantedTags := cfg.buildTags(target.Tags)
 	nbFQDNs := make(map[string]bool)
+	withAddr := 0
 
 	for _, p := range peers {
 		ip := peerIP(p, recType)
 		if ip == "" {
-			logDebug(cfg, "SKIP %s: no %s address", p.Name, recType)
 			continue
 		}
+		withAddr++
 
 		fqdn := peerDNSLabel(p, cfg.UseHostname) + "." + target.Domain
 		nbFQDNs[fqdn] = true
@@ -241,6 +242,10 @@ func syncRecordType(cfg *Config, peers []NetBirdPeer, recType string, target Zon
 			logDebug(cfg, "UNCHANGED %s %s (%s)", recType, fqdn, ip)
 			stats.Unchanged++
 		}
+	}
+
+	if withAddr == 0 {
+		logInfo("  %s: no peers have %s addresses — nothing to sync", recType, recType)
 	}
 
 	if cfg.Prune {
@@ -373,8 +378,9 @@ func writeBindZone(cfg *Config, peers []NetBirdPeer, w io.Writer, domain string)
 			fmt.Fprintf(tw, "%s\tIN A\t%s\n", label, ip)
 			wrote = true
 		}
-		if wrote {
-			tw.Flush()
+		tw.Flush()
+		if !wrote {
+			fmt.Fprintf(w, "; no peers have A (IPv4) addresses\n")
 		}
 	}
 
@@ -390,8 +396,9 @@ func writeBindZone(cfg *Config, peers []NetBirdPeer, w io.Writer, domain string)
 			fmt.Fprintf(tw, "%s\tIN AAAA\t%s\n", label, ip)
 			wrote = true
 		}
-		if wrote {
-			tw.Flush()
+		tw.Flush()
+		if !wrote {
+			fmt.Fprintf(w, "; no peers have AAAA (IPv6) addresses\n")
 		}
 	}
 
