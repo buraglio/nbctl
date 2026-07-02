@@ -101,6 +101,68 @@ zones:
 
 JSON is also accepted for all config files.
 
+## Architecture
+
+The diagram below shows how the source files are organized and how data flows through nbctl for each major operation.
+
+```mermaid
+flowchart TD
+    CLI(["**User**\nCLI flags · env vars · config file"])
+
+    CLI --> MAIN
+
+    subgraph entry["Entry & Configuration"]
+        direction LR
+        MAIN["**main.go**\nCommand dispatcher\nShared helpers: require · must · logInfo · logWarn\nVersion string · JSON encoder"]
+        CONFIG["**config.go**\nFlag parsing · env lookup\nJSON / YAML config file merge\nConfig · FileConfig · ZoneTarget\naddSyncFlags · addCommonFlags\neffectiveTargets · buildTags"]
+        MAIN <-.->|"Config struct\npassed to every command"| CONFIG
+    end
+
+    MAIN -->|"sync · watch\nzonefile"| SYNC_GRP
+    MAIN -->|peers| PEERS["**peers.go**\nlist · show · update · delete · accessible\nNetBirdPeer (ip + ipv6 fields)\nfetchPeers · findPeerByName"]
+    MAIN -->|groups| GROUPS["**groups.go**\nlist · show · create · update · delete"]
+    MAIN -->|users| USERS["**users.go**\nlist · create · delete · invite · approve"]
+    MAIN -->|setup-key| SETUPKEY["**setupkey.go**\nlist · show · create · revoke · delete"]
+    MAIN -->|routes| ROUTES["**routes.go**\nlist · show · create · update · delete"]
+    MAIN -->|policy| POLICY["**policy.go**\nlist · show · create · delete"]
+    MAIN -->|events| EVENTS["**events.go**\naudit"]
+    MAIN -->|posture-check| POSTURE["**posture.go**\nlist · show · delete"]
+    MAIN -->|completion| COMP["**completion.go**\nbash · zsh · fish scripts → stdout"]
+
+    subgraph SYNC_GRP["DNS Synchronization"]
+        SYNC["**sync.go**\ndoSync · runSync · runWatch · runZonefile\nSyncStats · peerDNSLabel · peerIP\nwriteBindZone · filterPeers"]
+        CF["**cloudflare.go**\nFetch · Create · Update · Delete records\nTag tracking · Prune · 3-attempt retry\nhasManagedTag · tagsMatch"]
+        SYNC -->|"A / AAAA records\nper ZoneTarget"| CF
+    end
+
+    subgraph MGMT_GRP["NetBird Management"]
+        PEERS
+        GROUPS
+        USERS
+        SETUPKEY
+        ROUTES
+        POLICY
+        EVENTS
+        POSTURE
+    end
+
+    SYNC_GRP -->|"GET /api/peers\nAuthorization: Token"| NB_API
+    MGMT_GRP -->|"GET · PUT · POST · DELETE\n/api/..."| NB_API
+
+    NB_API[("**NetBird API**\napi.netbird.io (or self-hosted)\n/api/peers  /api/groups\n/api/users  /api/setup-keys\n/api/routes  /api/policies\n/api/events  /api/posture-checks")]
+
+    CF --> CF_API[("**Cloudflare API**\napi.cloudflare.com/client/v4\nDNS record CRUD · tag management")]
+
+    SYNC -->|"--bind-zone-file\nor stdout"| BIND_OUT[("**BIND Zone File**\n$ORIGIN · SOA · NS\nA records · AAAA records")]
+```
+
+**Key data flows:**
+
+- **DNS sync** (`sync` / `watch`): `config.go` assembles the `Config`, `sync.go` calls `fetchPeers` from `peers.go`, then pushes A/AAAA records to `cloudflare.go` for each configured zone.
+- **Zone file** (`zonefile`): same fetch path as sync, but `writeBindZone` in `sync.go` writes BIND-format text to a file or stdout — no Cloudflare involved.
+- **Management commands** (`peers`, `groups`, `users`, etc.): each command file makes direct REST calls to the NetBird API using the shared `Config` built by `config.go`.
+- **Watch mode**: `runWatch` in `sync.go` calls `doSync` immediately then on every tick — the rest of the pipeline is identical to one-shot `sync`.
+
 ## Commands
 
 ### peers
@@ -290,8 +352,8 @@ nbctl sync --domain <suffix> [flags]
 | `--cf-token` | `CLOUDFLARE_API_TOKEN` | — | Cloudflare API token |
 | `--cf-zone` | `CLOUDFLARE_ZONE_ID` | — | Cloudflare zone ID |
 | `--domain` | `DOMAIN` | — | Domain suffix (e.g. `mesh.example.com`) |
-| `--ipv4` | — | true | Sync A records |
-| `--ipv6` | — | false | Sync AAAA records |
+| `--ipv4` | — | false | Sync A records (default: both when neither flag is set) |
+| `--ipv6` | — | false | Sync AAAA records (default: both when neither flag is set) |
 | `--ttl` | — | 60 | DNS record TTL in seconds |
 | `--prune` | — | false | Delete managed records absent from NetBird |
 | `--dry-run` | — | false | Preview changes without applying |
