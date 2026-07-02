@@ -18,6 +18,7 @@ type NetBirdPeer struct {
 	ID                          string         `json:"id"`
 	Name                        string         `json:"name"`
 	IP                          string         `json:"ip"`
+	IPv6                        string         `json:"ipv6"`
 	Connected                   bool           `json:"connected"`
 	LastSeen                    string         `json:"last_seen"`
 	OS                          string         `json:"os"`

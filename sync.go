@@ -39,19 +39,14 @@ func peerDNSLabel(p NetBirdPeer, useHostname bool) string {
 	return p.Name
 }
 
-// peerIP returns the peer's IP if it matches recType ("A" or "AAAA"),
-// or "" if the peer has no IP or it doesn't match.
+// peerIP returns the peer's IP for the requested record type, or "".
+// NetBird exposes separate fields: ip (IPv4) and ipv6 (IPv6, read-only).
 func peerIP(p NetBirdPeer, recType string) string {
-	ip := p.IP
-	if ip == "" {
-		return ""
-	}
-	isV6 := strings.Contains(ip, ":")
-	if recType == "AAAA" && isV6 {
-		return ip
-	}
-	if recType == "A" && !isV6 {
-		return ip
+	switch recType {
+	case "A":
+		return p.IP
+	case "AAAA":
+		return p.IPv6
 	}
 	return ""
 }
