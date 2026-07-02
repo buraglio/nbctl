@@ -22,17 +22,19 @@ type SyncStats struct {
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-// peerDNSLabel returns the label used for DNS record names.
-// Preference order: DNSLabel → Name. With --use-hostname: Hostname → Name.
+// peerDNSLabel returns the short label (no domain) for DNS record names.
+// NetBird's dns_label is the full FQDN (e.g. "peer.domain.com"), so we
+// take only the first segment. With --use-hostname we use the machine
+// hostname instead.
 func peerDNSLabel(p NetBirdPeer, useHostname bool) string {
 	if useHostname {
 		if p.Hostname != "" {
-			return p.Hostname
+			return strings.SplitN(p.Hostname, ".", 2)[0]
 		}
 		return p.Name
 	}
 	if p.DNSLabel != "" {
-		return p.DNSLabel
+		return strings.SplitN(p.DNSLabel, ".", 2)[0]
 	}
 	return p.Name
 }
