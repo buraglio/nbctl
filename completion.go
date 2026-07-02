@@ -39,7 +39,7 @@ _nbctl_completion() {
         cword=$COMP_CWORD
     fi
 
-    local top_cmds="peers groups users setup-key routes policy events posture-check completion version help"
+    local top_cmds="peers groups users setup-key routes policy sync zonefile watch events posture-check completion version help"
 
     if [[ $cword -eq 1 ]]; then
         COMPREPLY=( $(compgen -W "${top_cmds}" -- "${cur}") )
@@ -64,6 +64,9 @@ _nbctl_completion() {
             ;;
         policy)
             COMPREPLY=( $(compgen -W "list show create delete" -- "${cur}") )
+            ;;
+        sync|zonefile|watch)
+            COMPREPLY=()
             ;;
         events)
             COMPREPLY=( $(compgen -W "audit traffic" -- "${cur}") )
@@ -104,6 +107,9 @@ _nbctl() {
                 'setup-key:Manage setup keys'
                 'routes:Manage network routes'
                 'policy:Manage access policies'
+                'sync:Sync peer IPs to Cloudflare DNS'
+                'zonefile:Generate a BIND-format zone file'
+                'watch:Sync continuously on a repeating interval'
                 'events:View audit and traffic events'
                 'posture-check:Manage posture checks'
                 'completion:Generate shell completion scripts'
@@ -138,6 +144,8 @@ _nbctl() {
                     local subcmds=('list:List policies' 'show:Show policy details' 'create:Create a policy' 'delete:Delete a policy')
                     _describe 'subcommand' subcmds
                     ;;
+                sync|zonefile|watch)
+                    ;;
                 events)
                     local subcmds=('audit:List audit events' 'traffic:List traffic events')
                     _describe 'subcommand' subcmds
@@ -161,7 +169,7 @@ compdef _nbctl nbctl
 const fishCompletion = `# nbctl fish completion
 # Save to ~/.config/fish/completions/nbctl.fish: nbctl completion fish > ~/.config/fish/completions/nbctl.fish
 
-set -l top_cmds peers groups users setup-key routes policy events posture-check completion version help
+set -l top_cmds peers groups users setup-key routes policy sync zonefile watch events posture-check completion version help
 
 # Disable file completions for nbctl
 complete -c nbctl -f
@@ -173,6 +181,9 @@ complete -c nbctl -f -n "not __fish_seen_subcommand_from $top_cmds" -a users    
 complete -c nbctl -f -n "not __fish_seen_subcommand_from $top_cmds" -a setup-key      -d "Manage setup keys"
 complete -c nbctl -f -n "not __fish_seen_subcommand_from $top_cmds" -a routes         -d "Manage network routes"
 complete -c nbctl -f -n "not __fish_seen_subcommand_from $top_cmds" -a policy         -d "Manage access policies"
+complete -c nbctl -f -n "not __fish_seen_subcommand_from $top_cmds" -a sync           -d "Sync peer IPs to Cloudflare DNS"
+complete -c nbctl -f -n "not __fish_seen_subcommand_from $top_cmds" -a zonefile       -d "Generate a BIND-format zone file"
+complete -c nbctl -f -n "not __fish_seen_subcommand_from $top_cmds" -a watch          -d "Sync continuously on a repeating interval"
 complete -c nbctl -f -n "not __fish_seen_subcommand_from $top_cmds" -a events         -d "View audit and traffic events"
 complete -c nbctl -f -n "not __fish_seen_subcommand_from $top_cmds" -a posture-check  -d "Manage posture checks"
 complete -c nbctl -f -n "not __fish_seen_subcommand_from $top_cmds" -a completion     -d "Generate shell completion scripts"

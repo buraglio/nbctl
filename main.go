@@ -38,6 +38,12 @@ func main() {
 		runEvents(os.Args[2:])
 	case "posture-check":
 		runPostureCheck(os.Args[2:])
+	case "sync":
+		runSync(os.Args[2:])
+	case "zonefile":
+		runZonefile(os.Args[2:])
+	case "watch":
+		runWatch(os.Args[2:])
 	case "completion":
 		runCompletion(os.Args[2:])
 	case "version", "--version", "-version":
@@ -64,6 +70,9 @@ Commands:
   setup-key      Manage setup keys (sub-commands: list, show, create, update, delete)
   routes         Manage network routes (sub-commands: list, show, create, update, delete)
   policy         Manage access policies (sub-commands: list, show, create, update, delete)
+  sync           Sync peer IPs to Cloudflare DNS (one-shot)
+  zonefile       Generate a BIND-format zone file from NetBird peers
+  watch          Sync continuously on a repeating interval
   events         View audit and network traffic events (sub-commands: audit, traffic)
   posture-check  Manage posture checks (sub-commands: list, show, create, update, delete)
   completion     Generate shell completion scripts (bash, zsh, fish)
@@ -73,7 +82,10 @@ Run 'nbctl <command> -help' for command-specific flags.
 
 Environment variables (all commands):
   NETBIRD_URL     NetBird management URL (default: https://api.netbird.io)
-  NETBIRD_TOKEN   NetBird personal access token
+  NETBIRD_TOKEN         NetBird personal access token
+  CLOUDFLARE_API_TOKEN  Cloudflare API token (for sync/watch)
+  CLOUDFLARE_ZONE_ID    Cloudflare zone ID (for sync/watch)
+  DOMAIN                Domain suffix for DNS records
 
 Config file (JSON or YAML, pass with --config):
   {
@@ -90,6 +102,10 @@ Compiled-in default URL (set at build time for self-hosted):
 
 func logInfo(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "[INFO]  "+format+"\n", args...)
+}
+
+func logWarn(format string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, "[WARN]  "+format+"\n", args...)
 }
 
 func logDebug(cfg *Config, format string, args ...interface{}) {
