@@ -157,17 +157,23 @@ func doSync(cfg *Config) (*SyncStats, error) {
 		logInfo("After connected-only filter: %d peers", len(filtered))
 	}
 
+	// Default: sync both when neither flag is explicitly set.
+	syncV4, syncV6 := cfg.SyncIPv4, cfg.SyncIPv6
+	if !syncV4 && !syncV6 {
+		syncV4, syncV6 = true, true
+	}
+
 	stats := &SyncStats{}
 
 	for _, target := range cfg.effectiveTargets() {
 		logInfo("Zone %s: syncing %d peers", target.Domain, len(filtered))
 
-		if cfg.SyncIPv4 {
+		if syncV4 {
 			if err := syncRecordType(cfg, filtered, "A", target, stats); err != nil {
 				return stats, fmt.Errorf("zone %s A: %w", target.Domain, err)
 			}
 		}
-		if cfg.SyncIPv6 {
+		if syncV6 {
 			if err := syncRecordType(cfg, filtered, "AAAA", target, stats); err != nil {
 				return stats, fmt.Errorf("zone %s AAAA: %w", target.Domain, err)
 			}
@@ -347,9 +353,16 @@ func writeBindZone(cfg *Config, peers []NetBirdPeer, w io.Writer, domain string)
 		}
 	}
 
-	// Peer A records
+	// Default: emit both when neither flag is explicitly set.
+	writeV4, writeV6 := cfg.SyncIPv4, cfg.SyncIPv6
+	if !writeV4 && !writeV6 {
+		writeV4, writeV6 = true, true
+	}
+
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	if cfg.SyncIPv4 {
+
+	// A records
+	if writeV4 {
 		wrote := false
 		for _, p := range peers {
 			ip := peerIP(p, "A")
@@ -365,8 +378,8 @@ func writeBindZone(cfg *Config, peers []NetBirdPeer, w io.Writer, domain string)
 		}
 	}
 
-	// Peer AAAA records
-	if cfg.SyncIPv6 {
+	// AAAA records
+	if writeV6 {
 		wrote := false
 		for _, p := range peers {
 			ip := peerIP(p, "AAAA")
